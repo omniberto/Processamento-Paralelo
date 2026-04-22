@@ -24,19 +24,74 @@ typedef struct {
 } image_char;
 
 double** create_gaussian_kernel(int size, double sigma);
-double** apply_convolution(double** image, int img_h, int img_w, double** kernel, int k_h, int k_w);
-double** iterative_gaussian_blur(double** image, int img_h, int img_w, int kernel_size, int iterations, double sigma);
-double** copy_image(double** image, int h, int w);
-
-void free_matrix(const void** mat, int h);
+image_double apply_convolution_rgb(image_double img, double** kernel, int k_h, int k_w);
+image_double iterative_gaussian_blur_rgb(image_double img, int kernel_size, int iterations, double sigma);
+image_double copy_image_rgb(image_double img);
+void free_matrix(double** mat, int h);
 void print_matrix(double** mat, int h, int w);
-
 image_double open_image(char* nome);
 image_char convert_from_double(image_double);
+void free_image(image_double img);
 
-int main(void){
+
+int main(void) {
+
+    char* input_path = "images/image.png";
+    char* output_path = "images/output.png";
+
+    // 1. abrir imagem
+    image_double img = open_image(input_path);
+
+    printf("Imagem carregada: %dx%d\n", img.w, img.h);
+
+    // 2. aplicar blur
+    int kernel_size = 1;
+    int iterations = 10;
+    double sigma = 1.0;
+
+    image_double blurred = iterative_gaussian_blur_rgb(img, kernel_size, iterations, sigma);
+
+    // 3. converter usando sua função
+    image_char out = convert_from_double(blurred);
+
+    // 4. montar buffer linear (RGB)
+    unsigned char* buffer = malloc(out.w * out.h * 3);
+
+    for (int i = 0; i < out.h; i++) {
+        for (int j = 0; j < out.w; j++) {
+
+            int idx = (i * out.w + j) * 3;
+
+            buffer[idx]     = out.R[i][j];
+            buffer[idx + 1] = out.G[i][j];
+            buffer[idx + 2] = out.B[i][j];
+        }
+    }
+
+    // 5. salvar imagem
+    stbi_write_png(output_path, out.w, out.h, 3, buffer, out.w * 3);
+
+    printf("Imagem salva em: %s\n", output_path);
+
+    // 6. liberar memória
+
+    free_image(img);
+    free_image(blurred);
+
+    for (int i = 0; i < out.h; i++) {
+        free(out.R[i]);
+        free(out.G[i]);
+        free(out.B[i]);
+    }
+    free(out.R);
+    free(out.G);
+    free(out.B);
+
+    free(buffer);
+
     return 0;
 }
+
 double** create_gaussian_kernel(int size, double sigma) {
     int half = size / 2;
     double twoSigmaSqr = 2.0 * sigma * sigma;
@@ -74,18 +129,23 @@ double** create_gaussian_kernel(int size, double sigma) {
     return kernel;
 }
 
-double** apply_convolution(double** image, int img_h, int img_w, double** kernel, int k_h, int k_w) {
+image_double apply_convolution_rgb(image_double img, double** kernel, int k_h, int k_w) {
 
     int pad_h = k_h / 2;
     int pad_w = k_w / 2;
 
-    int padded_h = img_h + 2 * pad_h;
-    int padded_w = img_w + 2 * pad_w;
+    int padded_h = img.h + 2 * pad_h;
+    int padded_w = img.w + 2 * pad_w;
 
-    // criar imagem com padding
-    double** padded = (double**)malloc(padded_h * sizeof(double*));
+    // criar imagens com padding
+    double** Rp = (double**)malloc(padded_h * sizeof(double*));
+    double** Gp = (double**)malloc(padded_h * sizeof(double*));
+    double** Bp = (double**)malloc(padded_h * sizeof(double*));
+
     for (int i = 0; i < padded_h; i++) {
-        padded[i] = (double*)malloc(padded_w * sizeof(double));
+        Rp[i] = (double*)malloc(padded_w * sizeof(double));
+        Gp[i] = (double*)malloc(padded_w * sizeof(double));
+        Bp[i] = (double*)malloc(padded_w * sizeof(double));
     }
 
     // preencher com replicação de borda
@@ -95,63 +155,86 @@ double** apply_convolution(double** image, int img_h, int img_w, double** kernel
             int orig_i = i - pad_h;
             int orig_j = j - pad_w;
 
-            // clamp (replicação de borda)
+            // clamp
             if (orig_i < 0) orig_i = 0;
-            if (orig_i >= img_h) orig_i = img_h - 1;
+            if (orig_i >= img.h) orig_i = img.h - 1;
             if (orig_j < 0) orig_j = 0;
-            if (orig_j >= img_w) orig_j = img_w - 1;
+            if (orig_j >= img.w) orig_j = img.w - 1;
 
-            padded[i][j] = image[orig_i][orig_j];
+            Rp[i][j] = img.R[orig_i][orig_j];
+            Gp[i][j] = img.G[orig_i][orig_j];
+            Bp[i][j] = img.B[orig_i][orig_j];
         }
     }
 
     // saída
-    double** output = (double**)malloc(img_h * sizeof(double*));
-    for (int i = 0; i < img_h; i++) {
-        output[i] = (double*)malloc(img_w * sizeof(double));
+    image_double out;
+    out.h = img.h;
+    out.w = img.w;
+
+    out.R = (double**)malloc(out.h * sizeof(double*));
+    out.G = (double**)malloc(out.h * sizeof(double*));
+    out.B = (double**)malloc(out.h * sizeof(double*));
+
+    for (int i = 0; i < out.h; i++) {
+        out.R[i] = (double*)malloc(out.w * sizeof(double));
+        out.G[i] = (double*)malloc(out.w * sizeof(double));
+        out.B[i] = (double*)malloc(out.w * sizeof(double));
     }
 
-    // convolução
-    for (int i = 0; i < img_h; i++) {
-        for (int j = 0; j < img_w; j++) {
+    // convolução (mesma lógica, só triplicada)
+    for (int i = 0; i < out.h; i++) {
+        for (int j = 0; j < out.w; j++) {
 
-            double sum = 0.0;
+            double sumR = 0.0;
+            double sumG = 0.0;
+            double sumB = 0.0;
 
             for (int ki = 0; ki < k_h; ki++) {
                 for (int kj = 0; kj < k_w; kj++) {
 
-                    sum += padded[i + ki][j + kj] * kernel[ki][kj];
+                    double k = kernel[ki][kj];
+
+                    sumR += Rp[i + ki][j + kj] * k;
+                    sumG += Gp[i + ki][j + kj] * k;
+                    sumB += Bp[i + ki][j + kj] * k;
                 }
             }
 
-            output[i][j] = sum;
+            out.R[i][j] = sumR;
+            out.G[i][j] = sumG;
+            out.B[i][j] = sumB;
         }
     }
 
-    // liberar padded
+    // liberar padding
     for (int i = 0; i < padded_h; i++) {
-        free(padded[i]);
+        free(Rp[i]);
+        free(Gp[i]);
+        free(Bp[i]);
     }
-    free(padded);
+    free(Rp);
+    free(Gp);
+    free(Bp);
 
-    return output;
+    return out;
 }
 
 // iterativo
-double** iterative_gaussian_blur(double** image, int img_h, int img_w, int kernel_size, int iterations, double sigma) {
+image_double iterative_gaussian_blur_rgb(image_double img, int kernel_size, int iterations, double sigma) {
 
     // cria kernel uma vez
     double** kernel = create_gaussian_kernel(kernel_size, sigma);
 
     // copia imagem inicial
-    double** current = copy_image(image, img_h, img_w);
+    image_double current = copy_image_rgb(img);
 
     for (int it = 0; it < iterations; it++) {
 
-        double** next = apply_convolution(current, img_h, img_w, kernel, kernel_size, kernel_size);
+        image_double next = apply_convolution_rgb(current, kernel, kernel_size, kernel_size);
 
         // libera imagem anterior
-        free_matrix(current, img_h);
+        free_image(current);
 
         current = next;
     }
@@ -163,12 +246,13 @@ double** iterative_gaussian_blur(double** image, int img_h, int img_w, int kerne
 }
 
 // libera matriz
-void free_matrix(const void** mat, int h) {
+void free_matrix(double** mat, int h) {
     for (int i = 0; i < h; i++) {
         free(mat[i]);
     }
     free(mat);
 }
+
 // printar matrix
 void print_matrix(double** mat, int h, int w) {
     for (int i = 0; i < h; i++) {
@@ -178,6 +262,7 @@ void print_matrix(double** mat, int h, int w) {
         printf("\n");
     }
 }
+
 image_double open_image(char* nome) {
 
     image_double struct_img;
@@ -204,6 +289,7 @@ image_double open_image(char* nome) {
 
     return struct_img;
 }
+
 image_char convert_from_double(image_double img) {
     image_char new_img;
     new_img.h = img.h;
@@ -227,4 +313,40 @@ image_char convert_from_double(image_double img) {
     }
 
     return new_img;
+}
+
+image_double copy_image_rgb(image_double img) {
+    image_double copy;
+
+    copy.h = img.h;
+    copy.w = img.w;
+
+    copy.R = (double**)malloc(copy.h * sizeof(double*));
+    copy.G = (double**)malloc(copy.h * sizeof(double*));
+    copy.B = (double**)malloc(copy.h * sizeof(double*));
+
+    for (int i = 0; i < copy.h; i++) {
+        copy.R[i] = (double*)malloc(copy.w * sizeof(double));
+        copy.G[i] = (double*)malloc(copy.w * sizeof(double));
+        copy.B[i] = (double*)malloc(copy.w * sizeof(double));
+
+        for (int j = 0; j < copy.w; j++) {
+            copy.R[i][j] = img.R[i][j];
+            copy.G[i][j] = img.G[i][j];
+            copy.B[i][j] = img.B[i][j];
+        }
+    }
+
+    return copy;
+}
+
+void free_image(image_double img) {
+    for (int i = 0; i < img.h; i++) {
+        free(img.R[i]);
+        free(img.G[i]);
+        free(img.B[i]);
+    }
+    free(img.R);
+    free(img.G);
+    free(img.B);
 }

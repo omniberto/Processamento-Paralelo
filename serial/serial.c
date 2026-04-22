@@ -85,68 +85,7 @@ double** create_gaussian_kernel(int size, double sigma) {
     return kernel;
 }
 
-double** apply_convolution(double** image, int img_h, int img_w, double** kernel, int k_h, int k_w) {
 
-    int pad_h = k_h / 2;
-    int pad_w = k_w / 2;
-
-    int padded_h = img_h + 2 * pad_h;
-    int padded_w = img_w + 2 * pad_w;
-
-    // criar imagem com padding
-    double** padded = (double**)malloc(padded_h * sizeof(double*));
-    for (int i = 0; i < padded_h; i++) {
-        padded[i] = (double*)malloc(padded_w * sizeof(double));
-    }
-
-    // preencher com replicação de borda
-    for (int i = 0; i < padded_h; i++) {
-        for (int j = 0; j < padded_w; j++) {
-
-            int orig_i = i - pad_h;
-            int orig_j = j - pad_w;
-
-            // clamp (replicação de borda)
-            if (orig_i < 0) orig_i = 0;
-            if (orig_i >= img_h) orig_i = img_h - 1;
-            if (orig_j < 0) orig_j = 0;
-            if (orig_j >= img_w) orig_j = img_w - 1;
-
-            padded[i][j] = image[orig_i][orig_j];
-        }
-    }
-
-    // saída
-    double** output = (double**)malloc(img_h * sizeof(double*));
-    for (int i = 0; i < img_h; i++) {
-        output[i] = (double*)malloc(img_w * sizeof(double));
-    }
-
-    // convolução
-    for (int i = 0; i < img_h; i++) {
-        for (int j = 0; j < img_w; j++) {
-
-            double sum = 0.0;
-
-            for (int ki = 0; ki < k_h; ki++) {
-                for (int kj = 0; kj < k_w; kj++) {
-
-                    sum += padded[i + ki][j + kj] * kernel[ki][kj];
-                }
-            }
-
-            output[i][j] = sum;
-        }
-    }
-
-    // liberar padded
-    for (int i = 0; i < padded_h; i++) {
-        free(padded[i]);
-    }
-    free(padded);
-
-    return output;
-}
 
 // iterativo
 double** iterative_gaussian_blur(double** image, int img_h, int img_w, int kernel_size, int iterations, double sigma) {
