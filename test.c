@@ -29,7 +29,7 @@ int main(void) {
         B[i] = malloc(w * sizeof(double));
 
         for (int j = 0; j < w; j++) {
-            int idx = (i * w +j) * 3;
+            int idx = (i * w + j) * 3;
             R[i][j] = img[idx];
             G[i][j] = img[idx + 1];
             B[i][j] = img[idx + 2];

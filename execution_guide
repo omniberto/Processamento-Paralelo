@@ -1,0 +1,3 @@
+gcc -c stb_impl.c -o stb_impl.o
+gcc filtro_gaussiano_serial.c stb_impl.o -o main
+main

@@ -1,3 +1,0 @@
-gcc -c stb_impl.c -o stb_impl.o
-gcc test.c stb_impl.o -o main
-main
