@@ -5,6 +5,7 @@
 #include "headers/stb_image_write.h"
 #include <time.h>
 
+// Struct representando a imagem como double
 typedef struct {
     double **R;
     double **G;
@@ -14,6 +15,7 @@ typedef struct {
     int c;
 } image_double;
 
+// Struct representando a imagem como unsigned char
 typedef struct {
     unsigned char **R;
     unsigned char **G;
@@ -23,38 +25,45 @@ typedef struct {
     int c;
 } image_char;
 
-double** create_gaussian_kernel(int size, double sigma);
-image_double apply_convolution_rgb(image_double img, double** kernel, int k_h, int k_w);
-image_double iterative_gaussian_blur_rgb(image_double img, int kernel_size, int iterations, double sigma);
-image_double copy_image_rgb(image_double img);
-void free_matrix(double** mat, int h);
-void print_matrix(double** mat, int h, int w);
-image_double open_image(char* nome);
-image_char convert_from_double(image_double);
-void free_image(image_double img);
+double** create_gaussian_kernel(int size, double sigma); // Criar Kernel
+image_double apply_convolution_rgb(image_double img, double** kernel, int k_h, int k_w); // Aplicar Convolução em RGB
+image_double iterative_gaussian_blur_rgb(image_double img, unsigned int kernel_size, unsigned int iterations, double sigma); // Aplicar Desfoque Gaussiano em RGB
+image_double copy_image_rgb(image_double img); // Função para copiar imagem
+void free_matrix(double** mat, int h); // Liberar Matriz
+void print_matrix(double** mat, int h, int w); // Printar Matriz
+image_double open_image(char* nome); // Abrir Imagem
+image_char convert_from_double(image_double); // Converter de double para unsigned char
+void free_image_double(image_double img); // Liberar Imagem
+void free_image_char(image_char img); // Liberar Imagem
 
 
 int main(void) {
 
-    char* input_path = "images/image.png";
-    char* output_path = "images/output.png";
+    char* input_path = "images/image.png"; // Arquivo de entrada
+    char* output_path = "images/output.png"; // Arquivo de saída
 
-    // 1. abrir imagem
+    // 1. Abrir a imagem de entrada.
     image_double img = open_image(input_path);
 
-    printf("Imagem carregada: %dx%d\n", img.w, img.h);
-
-    // 2. aplicar blur
-    int kernel_size = 1;
-    int iterations = 10;
+    // 2. Aplicar blur.
+    unsigned int kernel_size = 11;
+    unsigned int iterations = 5;
     double sigma = 1.0;
 
     image_double blurred = iterative_gaussian_blur_rgb(img, kernel_size, iterations, sigma);
+    printf("Verificao final:\n");
+    for (int i = 0; i < 5; i++){
+        for(int j = 0; j < 5; j++){
+            printf("%lf ", blurred.R[i][j]);
+        }
+        printf("\n");
+    }
+    printf("\n");
 
-    // 3. converter usando sua função
+    // 3. Converter de double para unsigned char pra saída.
     image_char out = convert_from_double(blurred);
 
-    // 4. montar buffer linear (RGB)
+    // 4. Montar buffer linear (RGB)
     unsigned char* buffer = malloc(out.w * out.h * 3);
 
     for (int i = 0; i < out.h; i++) {
@@ -70,23 +79,13 @@ int main(void) {
 
     // 5. salvar imagem
     stbi_write_png(output_path, out.w, out.h, 3, buffer, out.w * 3);
-
     printf("Imagem salva em: %s\n", output_path);
 
     // 6. liberar memória
 
-    free_image(img);
-    free_image(blurred);
-
-    for (int i = 0; i < out.h; i++) {
-        free(out.R[i]);
-        free(out.G[i]);
-        free(out.B[i]);
-    }
-    free(out.R);
-    free(out.G);
-    free(out.B);
-
+    free_image_double(img);
+    free_image_double(blurred);
+    free_image_char(out);
     free(buffer);
 
     return 0;
@@ -138,14 +137,14 @@ image_double apply_convolution_rgb(image_double img, double** kernel, int k_h, i
     int padded_w = img.w + 2 * pad_w;
 
     // criar imagens com padding
-    double** Rp = (double**)malloc(padded_h * sizeof(double*));
-    double** Gp = (double**)malloc(padded_h * sizeof(double*));
-    double** Bp = (double**)malloc(padded_h * sizeof(double*));
+    double** Rp = (double**) malloc(padded_h * sizeof(double*));
+    double** Gp = (double**) malloc(padded_h * sizeof(double*));
+    double** Bp = (double**) malloc(padded_h * sizeof(double*));
 
     for (int i = 0; i < padded_h; i++) {
-        Rp[i] = (double*)malloc(padded_w * sizeof(double));
-        Gp[i] = (double*)malloc(padded_w * sizeof(double));
-        Bp[i] = (double*)malloc(padded_w * sizeof(double));
+        Rp[i] = (double*) malloc(padded_w * sizeof(double));
+        Gp[i] = (double*) malloc(padded_w * sizeof(double));
+        Bp[i] = (double*) malloc(padded_w * sizeof(double));
     }
 
     // preencher com replicação de borda
@@ -221,13 +220,14 @@ image_double apply_convolution_rgb(image_double img, double** kernel, int k_h, i
 }
 
 // iterativo
-image_double iterative_gaussian_blur_rgb(image_double img, int kernel_size, int iterations, double sigma) {
+image_double iterative_gaussian_blur_rgb(image_double img, unsigned int kernel_size, unsigned int iterations, double sigma) {
 
     // cria kernel uma vez
     double** kernel = create_gaussian_kernel(kernel_size, sigma);
 
     // copia imagem inicial
-    image_double current = copy_image_rgb(img);
+    //image_double current = copy_image_rgb(img);
+    image_double current = img;
 
     for (int it = 0; it < iterations; it++) {
 
@@ -340,7 +340,18 @@ image_double copy_image_rgb(image_double img) {
     return copy;
 }
 
-void free_image(image_double img) {
+void free_image_double(image_double img) {
+    for (int i = 0; i < img.h; i++) {
+        free(img.R[i]);
+        free(img.G[i]);
+        free(img.B[i]);
+    }
+    free(img.R);
+    free(img.G);
+    free(img.B);
+}
+
+void free_image_char(image_char img){
     for (int i = 0; i < img.h; i++) {
         free(img.R[i]);
         free(img.G[i]);
