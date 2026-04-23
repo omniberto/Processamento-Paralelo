@@ -1,3 +1,8 @@
 gcc -c stb_impl.c -o stb_impl.o
 gcc filtro_gaussiano_serial.c stb_impl.o -o main
 main
+    [255, 210, 30, 225, 111],
+    [222, 254, 156, 42, 222],
+    [13, 46, 59, 56, 38],
+    [212, 154, 456, 49, 205],
+    [105, 205, 35, 225, 115]

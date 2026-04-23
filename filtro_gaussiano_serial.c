@@ -43,18 +43,44 @@ int main(void) {
     char* output_path = "images/output.png"; // Arquivo de saída
 
     // 1. Abrir a imagem de entrada.
-    image_double img = open_image(input_path);
+    // image_double img = open_image(input_path);
+    image_double img;
+    double data[5][5] = {
+        {255, 210, 30, 225, 111},
+        {222, 254, 156, 42, 222},
+        {13, 46, 59, 56, 38},
+        {212, 154, 456, 49, 205},
+        {105, 205, 35, 225, 115}
+    };
+
+    img.h = 5;
+    img.w = 5;
+    img.c = 3;
+    img.R = malloc(img.h * sizeof(double*));
+    img.G = malloc(img.h * sizeof(double*));
+    img.B = malloc(img.h * sizeof(double*));
+
+    for(int i = 0; i < img.h; i++) {
+        img.R[i] = malloc(img.w * sizeof(double));
+        img.G[i] = malloc(img.w * sizeof(double));
+        img.B[i] = malloc(img.w * sizeof(double));
+        for(int j = 0; j < img.w; j++){
+            img.R[i][j] = data[i][j];
+            img.G[i][j] = data[i][j];
+            img.B[i][j] = data[i][j];
+        }
+    }
 
     // 2. Aplicar blur.
-    unsigned int kernel_size = 11;
-    unsigned int iterations = 5;
+    unsigned int kernel_size = 3;
+    unsigned int iterations = 2;
     double sigma = 1.0;
 
     image_double blurred = iterative_gaussian_blur_rgb(img, kernel_size, iterations, sigma);
     printf("Verificao final:\n");
     for (int i = 0; i < 5; i++){
         for(int j = 0; j < 5; j++){
-            printf("%lf ", blurred.R[i][j]);
+            printf("%.2lf ", blurred.R[i][j]);
         }
         printf("\n");
     }
@@ -62,7 +88,7 @@ int main(void) {
 
     // 3. Converter de double para unsigned char pra saída.
     image_char out = convert_from_double(blurred);
-
+    
     // 4. Montar buffer linear (RGB)
     unsigned char* buffer = malloc(out.w * out.h * 3);
 
@@ -76,7 +102,14 @@ int main(void) {
             buffer[idx + 2] = out.B[i][j];
         }
     }
-
+    printf("Verificao final:\n");
+    for (int i = 0; i < 5; i++){
+        for(int j = 0; j < 5; j++){
+            printf("%i ", out.R[i][j]);
+        }
+        printf("\n");
+    }
+    printf("\n");
     // 5. salvar imagem
     stbi_write_png(output_path, out.w, out.h, 3, buffer, out.w * 3);
     printf("Imagem salva em: %s\n", output_path);
@@ -226,15 +259,15 @@ image_double iterative_gaussian_blur_rgb(image_double img, unsigned int kernel_s
     double** kernel = create_gaussian_kernel(kernel_size, sigma);
 
     // copia imagem inicial
-    //image_double current = copy_image_rgb(img);
-    image_double current = img;
+    image_double current = copy_image_rgb(img);
+    // image_double current = img;
 
-    for (int it = 0; it < iterations; it++) {
+    for (unsigned int it = 0; it < iterations; it++) {
 
         image_double next = apply_convolution_rgb(current, kernel, kernel_size, kernel_size);
 
         // libera imagem anterior
-        free_image(current);
+        free_image_double(current);
 
         current = next;
     }
@@ -306,9 +339,9 @@ image_char convert_from_double(image_double img) {
         new_img.B[i] = malloc(new_img.w * sizeof(unsigned char));
 
         for (int j = 0; j < new_img.w; j++){
-            new_img.R[i][j] = (unsigned char) img.R[i][j];
-            new_img.G[i][j] = (unsigned char) img.G[i][j];
-            new_img.B[i][j] = (unsigned char) img.B[i][j];
+            new_img.R[i][j] = (unsigned char) round(img.R[i][j]);
+            new_img.G[i][j] = (unsigned char) round(img.G[i][j]);
+            new_img.B[i][j] = (unsigned char) round(img.B[i][j]);
         }
     }
 
