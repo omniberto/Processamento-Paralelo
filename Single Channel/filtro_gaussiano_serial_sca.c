@@ -1,8 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-#include "headers/stb_image.h"
-#include "headers/stb_image_write.h"
+#include "../headers/stb_image.h"
+#include "../headers/stb_image_write.h"
 #include <time.h>
 
 // Struct representando a imagem como double

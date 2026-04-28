@@ -1,8 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-#include "../../headers/stb_image.h"
-#include "../../headers/stb_image_write.h"
+#include "../../../headers/stb_image.h"
+#include "../../../headers/stb_image_write.h"
 #include <time.h>
 
 // Struct representando a imagem como double
@@ -25,9 +25,14 @@ typedef struct {
     int c;
 } image_char;
 
-double* create_gaussian_kernel(int size, double sigma); // Criar Kernel
-image_double apply_convolution_rgb(image_double img, double* kernel, int k_h, int k_w); // Aplicar Convolução em RGB
-image_double iterative_gaussian_blur_rgb(image_double img, unsigned int kernel_size, unsigned int iterations, double sigma); // Aplicar Desfoque Gaussiano em RGB
+typedef struct {
+    double *kernel_values;
+    int side;
+} kernel;
+
+kernel create_gaussian_kernel(int size, double sigma); // Criar Kernel
+image_double apply_convolution_rgb(image_double img, kernel kernel_R, kernel kernel_G, kernel kernel_B); // Aplicar Convolução em RGB
+image_double iterative_gaussian_blur_rgb(image_double img, unsigned int, unsigned int, unsigned int, unsigned int, double sigma); // Aplicar Desfoque Gaussiano em RGB
 image_double copy_image_rgb(image_double img); // Função para copiar imagem
 void free_matrix(double* mat, int h); // Liberar Matriz
 void print_matrix(double* mat, int h, int w); // Printar Matriz
@@ -35,12 +40,13 @@ image_double open_image(char* nome); // Abrir Imagem
 image_char convert_from_double(image_double); // Converter de double para unsigned char
 void free_image_double(image_double img); // Liberar Imagem
 void free_image_char(image_char img); // Liberar Imagem
+void free_kernel(kernel Kernel); // Liberar Kernel
 
 
 int main(void) {
 
-    char* input_path = "../../images/image.png"; // Arquivo de entrada
-    char* output_path = "../../images/outputrgb.png"; // Arquivo de saída
+    char* input_path = "../../../images/image.png"; // Arquivo de entrada
+    char* output_path = "../../../images/outputrgbmksi.png"; // Arquivo de saída
 
     // 1. Abrir a imagem de entrada.
      image_double img = open_image(input_path);
@@ -73,11 +79,13 @@ int main(void) {
     */
 
     // 2. Aplicar blur.
-    unsigned int kernel_size = 3;
-    unsigned int iterations = 2;
+    unsigned int kernel_size_R = 3;
+    unsigned int kernel_size_G = 5;
+    unsigned int kernel_size_B = 7;
+    unsigned int iterations = 15;
     double sigma = 1.0;
 
-    image_double blurred = iterative_gaussian_blur_rgb(img, kernel_size, iterations, sigma);
+    image_double blurred = iterative_gaussian_blur_rgb(img, kernel_size_R, kernel_size_G, kernel_size_B, iterations, sigma);
     printf("Verificao final:\n");
     for (int i = 0; i < 5; i++){
         for(int j = 0; j < 5; j++){
@@ -125,12 +133,14 @@ int main(void) {
     return 0;
 }
 
-double* create_gaussian_kernel(int size, double sigma) {
+kernel create_gaussian_kernel(int size, double sigma) {
+    kernel new;
+    new.side = size;
     int half = size / 2;
     double twoSigmaSqr = 2.0 * sigma * sigma;
 
     // alocar matriz 2D
-    double* kernel = (double*) malloc(size * size * sizeof(double));
+    new.kernel_values = (double*) malloc(size * size * sizeof(double));
 
     double sum = 0.0;
 
@@ -142,7 +152,7 @@ double* create_gaussian_kernel(int size, double sigma) {
 
             double value = exp(-(x*x + y*y) / twoSigmaSqr);
 
-            kernel[size * i + j] = value;
+            new.kernel_values[size * i + j] = value;
             sum += value;
         }
     }
@@ -152,33 +162,44 @@ double* create_gaussian_kernel(int size, double sigma) {
 
     for (int i = 0; i < size; i++) {
         for (int j = 0; j < size; j++) {
-            kernel[size * i + j] *= invSum;
+            new.kernel_values[size * i + j] *= invSum;
         }
     }
 
-    return kernel;
+    return new;
 }
 
-image_double apply_convolution_rgb(image_double img, double* kernel, int k_h, int k_w) {
+image_double apply_convolution_rgb(image_double img, kernel kernel_R, kernel kernel_G, kernel kernel_B) {
 
-    int pad_h = k_h / 2;
-    int pad_w = k_w / 2;
+    int pad_h_R = kernel_R.side / 2;
+    int pad_w_R = kernel_R.side / 2;
+    int pad_h_G = kernel_G.side / 2;
+    int pad_w_G = kernel_G.side / 2;
+    int pad_h_B = kernel_B.side / 2;
+    int pad_w_B = kernel_B.side / 2;
 
-    int padded_h = img.h + 2 * pad_h;
-    int padded_w = img.w + 2 * pad_w;
-    unsigned long int range_pad = padded_h * padded_w;
+    int padded_h_R = img.h + 2 * pad_h_R;
+    int padded_w_R = img.w + 2 * pad_w_R;
+    int padded_h_G = img.h + 2 * pad_h_G;
+    int padded_w_G = img.w + 2 * pad_w_G;
+    int padded_h_B = img.h + 2 * pad_h_B;
+    int padded_w_B = img.w + 2 * pad_w_B;
+
+    unsigned long int range_pad_R = padded_h_R * padded_w_R;
+    unsigned long int range_pad_G = padded_h_G * padded_w_G;
+    unsigned long int range_pad_B = padded_h_B * padded_w_B;
 
     // criar imagens com padding
-    double* Rp = (double*) malloc(range_pad * sizeof(double));
-    double* Gp = (double*) malloc(range_pad * sizeof(double));
-    double* Bp = (double*) malloc(range_pad * sizeof(double));
+    double* Rp = (double*) malloc(range_pad_R * sizeof(double));
+    double* Gp = (double*) malloc(range_pad_G * sizeof(double));
+    double* Bp = (double*) malloc(range_pad_B * sizeof(double));
 
     // preencher com replicação de borda
-    for (int i = 0; i < padded_h; i++) {
-        for (int j = 0; j < padded_w; j++) {
+    for (int i = 0; i < padded_h_R; i++) {
+        for (int j = 0; j < padded_w_R; j++) {
 
-            int orig_i = i - pad_h;
-            int orig_j = j - pad_w;
+            int orig_i = i - pad_h_R;
+            int orig_j = j - pad_w_R;
 
             // clamp
             if (orig_i < 0) orig_i = 0;
@@ -186,9 +207,37 @@ image_double apply_convolution_rgb(image_double img, double* kernel, int k_h, in
             if (orig_j < 0) orig_j = 0;
             if (orig_j >= img.w) orig_j = img.w - 1;
 
-            Rp[padded_h * i + j] = img.R[img.h * orig_i + orig_j];
-            Gp[padded_h * i + j] = img.G[img.h * orig_i + orig_j];
-            Bp[padded_h * i + j] = img.B[img.h * orig_i + orig_j];
+            Rp[padded_h_R * i + j] = img.R[img.h * orig_i + orig_j];
+        }
+    }
+    for (int i = 0; i < padded_h_G; i++) {
+        for (int j = 0; j < padded_w_G; j++) {
+
+            int orig_i = i - pad_h_G;
+            int orig_j = j - pad_w_G;
+
+            // clamp
+            if (orig_i < 0) orig_i = 0;
+            if (orig_i >= img.h) orig_i = img.h - 1;
+            if (orig_j < 0) orig_j = 0;
+            if (orig_j >= img.w) orig_j = img.w - 1;
+
+            Gp[padded_h_G * i + j] = img.G[img.h * orig_i + orig_j];
+        }
+    }
+    for (int i = 0; i < padded_h_B; i++) {
+        for (int j = 0; j < padded_w_B; j++) {
+
+            int orig_i = i - pad_h_B;
+            int orig_j = j - pad_w_B;
+
+            // clamp
+            if (orig_i < 0) orig_i = 0;
+            if (orig_i >= img.h) orig_i = img.h - 1;
+            if (orig_j < 0) orig_j = 0;
+            if (orig_j >= img.w) orig_j = img.w - 1;
+
+            Bp[padded_h_B * i + j] = img.B[img.h * orig_i + orig_j];
         }
     }
 
@@ -210,14 +259,22 @@ image_double apply_convolution_rgb(image_double img, double* kernel, int k_h, in
             double sumG = 0.0;
             double sumB = 0.0;
 
-            for (int ki = 0; ki < k_h; ki++) {
-                for (int kj = 0; kj < k_w; kj++) {
-
-                    double k = kernel[k_h * ki + kj];
-
-                    sumR += Rp[padded_h * (i + ki) + (j + kj)] * k;
-                    sumG += Gp[padded_h * (i + ki) + (j + kj)] * k;
-                    sumB += Bp[padded_h * (i + ki) + (j + kj)] * k;
+            for (int ki = 0; ki < kernel_R.side; ki++) {
+                for (int kj = 0; kj < kernel_R.side; kj++) {
+                    double k_R = kernel_R.kernel_values[kernel_R.side * ki + kj];
+                    sumR += Rp[padded_h_R * (i + ki) + (j + kj)] * k_R;
+                }
+            }
+            for (int ki = 0; ki < kernel_G.side; ki++) {
+                for (int kj = 0; kj < kernel_G.side; kj++) {
+                    double k_G = kernel_G.kernel_values[kernel_G.side * ki + kj];
+                    sumG += Gp[padded_h_G * (i + ki) + (j + kj)] * k_G;
+                }
+            }
+            for (int ki = 0; ki < kernel_B.side; ki++) {
+                for (int kj = 0; kj < kernel_B.side; kj++) {
+                    double k_B = kernel_B.kernel_values[kernel_B.side * ki + kj];
+                    sumB += Bp[padded_h_B * (i + ki) + (j + kj)] * k_B;
                 }
             }
 
@@ -236,10 +293,12 @@ image_double apply_convolution_rgb(image_double img, double* kernel, int k_h, in
 }
 
 // iterativo
-image_double iterative_gaussian_blur_rgb(image_double img, unsigned int kernel_size, unsigned int iterations, double sigma) {
+image_double iterative_gaussian_blur_rgb(image_double img, unsigned int kernel_size_R, unsigned int kernel_size_G, unsigned int kernel_size_B, unsigned int iterations, double sigma) {
 
     // cria kernel uma vez
-    double* kernel = create_gaussian_kernel(kernel_size, sigma);
+    kernel kernel_R = create_gaussian_kernel(kernel_size_R, sigma);
+    kernel kernel_G = create_gaussian_kernel(kernel_size_G, sigma);
+    kernel kernel_B = create_gaussian_kernel(kernel_size_B, sigma);
 
     // copia imagem inicial
     image_double current = copy_image_rgb(img);
@@ -247,7 +306,7 @@ image_double iterative_gaussian_blur_rgb(image_double img, unsigned int kernel_s
 
     for (unsigned int it = 0; it < iterations; it++) {
 
-        image_double next = apply_convolution_rgb(current, kernel, kernel_size, kernel_size);
+        image_double next = apply_convolution_rgb(current, kernel_R, kernel_G, kernel_B);
 
         // libera imagem anterior
         free_image_double(current);
@@ -256,7 +315,9 @@ image_double iterative_gaussian_blur_rgb(image_double img, unsigned int kernel_s
     }
 
     // liberar kernel
-    free(kernel);
+    free_kernel(kernel_R);
+    free_kernel(kernel_G);
+    free_kernel(kernel_B);
 
     return current;
 }
@@ -353,4 +414,8 @@ void free_image_char(image_char img){
     free(img.R);
     free(img.G);
     free(img.B);
+}
+
+void free_kernel(kernel Kernel){
+    free(Kernel.kernel_values);
 }

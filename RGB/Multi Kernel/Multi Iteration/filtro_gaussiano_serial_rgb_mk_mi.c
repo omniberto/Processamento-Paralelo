@@ -1,8 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-#include "headers/stb_image.h"
-#include "headers/stb_image_write.h"
+#include "../../../headers/stb_image.h"
+#include "../../../headers/stb_image_write.h"
 #include <time.h>
 
 // Struct representando a imagem como double
@@ -45,8 +45,8 @@ void free_kernel(kernel Kernel); // Liberar Kernel
 
 int main(void) {
 
-    char* input_path = "../images/image.png"; // Arquivo de entrada
-    char* output_path = "../images/outputrgbmk.png"; // Arquivo de saída
+    char* input_path = "../../../images/image.png"; // Arquivo de entrada
+    char* output_path = "../../../images/outputrgbmkmi.png"; // Arquivo de saída
 
     // 1. Abrir a imagem de entrada.
      image_double img = open_image(input_path);
@@ -82,10 +82,16 @@ int main(void) {
     unsigned int kernel_size_R = 3;
     unsigned int kernel_size_G = 5;
     unsigned int kernel_size_B = 7;
-    unsigned int iterations = 10;
+    unsigned int iterations_R = 5;
+    unsigned int iterations_G = 8;
+    unsigned int iterations_B = 10;
     double sigma = 1.0;
 
-    image_double blurred = iterative_gaussian_blur_rgb(img, kernel_size_R, kernel_size_G, kernel_size_B, iterations, sigma);
+    
+    image_double blurred = copy_image_rgb(img);
+    //blurred = iterative_gaussian_blur_rgb(blurred, kernel_size_R, 1, 1, iterations_R, sigma);
+    //blurred = iterative_gaussian_blur_rgb(blurred, 1, kernel_size_G, 1, iterations_G, sigma);
+    blurred = iterative_gaussian_blur_rgb(blurred, 1, 1, kernel_size_B, iterations_B, sigma);
     printf("Verificao final:\n");
     for (int i = 0; i < 5; i++){
         for(int j = 0; j < 5; j++){
