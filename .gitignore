@@ -1,0 +1,4 @@
+.gitignore
+main.exe
+stb_impl.o
+execution_guide
