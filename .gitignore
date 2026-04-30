@@ -4,3 +4,6 @@ stb_impl.o
 execution_guide
 teste.c
 serial/
+.vscode/
+mainparallel.exe
+mainserial.exe
