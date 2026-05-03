@@ -11,11 +11,11 @@ Repositório destinado à implementação das atividades da disciplina **Process
 ## 📥 Clonando o repositório
 
 ```bash
-git clone <https://github.com/omniberto/Processamento-Paralelo.git>
+git clone https://github.com/omniberto/Processamento-Paralelo.git
 ```
 
 ```bash
-cd <Processamento-Paralelo>
+cd Processamento-Paralelo
 ```
 
 ---
