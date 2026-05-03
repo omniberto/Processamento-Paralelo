@@ -58,8 +58,14 @@ gcc -fopenmp ./corretude/corretude_parallel_rgb.c stb_impl.o -o corretudeparalle
 
 ```bash
 ./mainparallel
+```
+```bash
 ./mainserial
+```
+```bash
 ./corretudeserial
+```
+```bash
 ./corretudeparallel
 ```
 
