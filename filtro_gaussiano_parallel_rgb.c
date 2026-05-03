@@ -49,9 +49,9 @@ void save_image(char* nome, image_double blurred); //Salvar imagem
 int main(void) {
 
     double start, stop;
-    char* input_path = "./images/image_2048.png"; // Arquivo de entrada
+    char* input_path = "./images/image_1024.png"; // Arquivo de entrada
     char* output_path = "./images/outputrgbmksi.png"; // Arquivo de saída
-    omp_set_num_threads(14);
+    omp_set_num_threads(2);
 
     start = omp_get_wtime();
     // 1. Abrir a imagem de entrada.

@@ -1,8 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-#include "./headers/stb_image.h"
-#include "./headers/stb_image_write.h"
+#include "./../headers/stb_image.h"
+#include "./../headers/stb_image_write.h"
 #include <time.h>
 #include <omp.h>
 
@@ -46,35 +46,94 @@ void free_kernel(kernel Kernel); // Liberar Kernel
 void save_image(char* nome, image_double blurred); //Salvar imagem
 
 
-
 int main(void) {
 
     double start, stop;
+    /*
     char* input_path = "./images/image_1024.png"; // Arquivo de entrada
     char* output_path = "./images/outputrgbmksi.png"; // Arquivo de saída
+    omp_set_num_threads(2);
 
     start = omp_get_wtime();
     // 1. Abrir a imagem de entrada.
     image_double img = open_image(input_path);
     stop = omp_get_wtime();
     printf("Tempo de abertura da imagem:: %f\n", stop-start);
+    */
+
+    image_double img;
+    img.w = 5;
+    img.h = 5;
+    img.c = 3; // RGB
+
+    int size = img.w * img.h;
+
+    // Alocação
+    img.R = (double*) malloc(size * sizeof(double));
+    img.G = (double*) malloc(size * sizeof(double));
+    img.B = (double*) malloc(size * sizeof(double));
+
+    // Matriz base
+    double kernel[5][5] = {
+        {1, 2, 3, 2, 1},
+        {2, 4, 6, 4, 2},
+        {3, 6, 9, 6, 3},
+        {2, 4, 6, 4, 2},
+        {1, 2, 3, 2, 1}
+    };
+
+    // Copiando para os canais (igual para R, G e B)
+    for (int i = 0; i < img.h; i++) {
+        for (int j = 0; j < img.w; j++) {
+            int idx = i * img.w + j;
+            img.R[idx] = kernel[i][j];
+            img.G[idx] = kernel[i][j];
+            img.B[idx] = kernel[i][j];
+        }
+    }
 
     start = omp_get_wtime();
     // 2. Aplicar blur.
     unsigned int kernel_size_R = 3;
-    unsigned int kernel_size_G = 5;
-    unsigned int kernel_size_B = 7;
-    unsigned int iterations = 100;
+    unsigned int kernel_size_G = 3;
+    unsigned int kernel_size_B = 3;
+    unsigned int iterations = 2;
     double sigma = 1.0;
 
     image_double blurred = iterative_gaussian_blur_rgb(img, kernel_size_R, kernel_size_G, kernel_size_B, iterations, sigma);
     stop = omp_get_wtime();
     printf("Tempo de processamento do filtro Gaussiano: %f\n", stop-start);
-
+    
+    /*
     start = omp_get_wtime();
     save_image(output_path, blurred);
     stop = omp_get_wtime();
     printf("Tempo de salvamento da imagem:: %f\n", stop-start);
+    */
+
+    printf("Canal R:\n");
+    for (int i = 0; i < blurred.h; i++) {
+        for (int j = 0; j < blurred.w; j++) {
+            printf("%.2f ", blurred.R[i * blurred.w + j]);
+        }
+        printf("\n");
+    }
+
+    printf("\nCanal G:\n");
+    for (int i = 0; i < blurred.h; i++) {
+        for (int j = 0; j < blurred.w; j++) {
+            printf("%.2f ", blurred.G[i * blurred.w + j]);
+        }
+        printf("\n");
+    }
+
+    printf("\nCanal B:\n");
+    for (int i = 0; i < blurred.h; i++) {
+        for (int j = 0; j < blurred.w; j++) {
+            printf("%.2f ", blurred.B[i * blurred.w + j]);
+        }
+        printf("\n");
+    }
 
     // 6. liberar memória
 
@@ -96,6 +155,8 @@ kernel create_gaussian_kernel(int size, double sigma) {
 
     double sum = 0.0;
 
+    // Paralelização com reduction devido o race condition
+    #pragma omp parallel for reduction(+:sum)
     for (int i = 0; i < size; i++) {
         int y = i - half;
 
@@ -112,6 +173,8 @@ kernel create_gaussian_kernel(int size, double sigma) {
     // normalizar (soma = 1)
     double invSum = 1.0 / sum; // evita várias divisões
 
+    // Paralelismo do for
+    #pragma omp parallel for
     for (int i = 0; i < size; i++) {
         for (int j = 0; j < size; j++) {
             new.kernel_values[size * i + j] *= invSum;
@@ -121,8 +184,8 @@ kernel create_gaussian_kernel(int size, double sigma) {
     return new;
 }
 
-image_double apply_convolution_rgb(image_double img, image_double out, double *Rp, double *Gp, double *Bp, kernel kernel_R, kernel kernel_G, kernel kernel_B){
-    
+image_double apply_convolution_rgb(image_double img, image_double out, double *Rp, double *Gp, double *Bp, kernel kernel_R, kernel kernel_G, kernel kernel_B) {
+
     int pad_h_R = kernel_R.side / 2;
     int pad_w_R = kernel_R.side / 2;
     int pad_h_G = kernel_G.side / 2;
@@ -136,84 +199,97 @@ image_double apply_convolution_rgb(image_double img, image_double out, double *R
     int padded_w_G = img.w + 2 * pad_w_G;
     int padded_h_B = img.h + 2 * pad_h_B;
     int padded_w_B = img.w + 2 * pad_w_B;
+    
+    #pragma omp parallel
+    {
+        #pragma omp for schedule(static) nowait
+        // preencher com replicação de borda
+        for (int i = 0; i < padded_h_R; i++) {
+            for (int j = 0; j < padded_w_R; j++) {
 
-    // preencher com replicação de borda
-    for (int i = 0; i < padded_h_R; i++) {
-        for (int j = 0; j < padded_w_R; j++) {
+                int orig_i = i - pad_h_R;
+                int orig_j = j - pad_w_R;
 
-            int orig_i = i - pad_h_R;
-            int orig_j = j - pad_w_R;
+                // clamp
+                if (orig_i < 0) orig_i = 0;
+                if (orig_i >= img.h) orig_i = img.h - 1;
+                if (orig_j < 0) orig_j = 0;
+                if (orig_j >= img.w) orig_j = img.w - 1;
 
-            // clamp
-            if (orig_i < 0) orig_i = 0;
-            if (orig_i >= img.h) orig_i = img.h - 1;
-            if (orig_j < 0) orig_j = 0;
-            if (orig_j >= img.w) orig_j = img.w - 1;
-
-            Rp[padded_h_R * i + j] = img.R[img.h * orig_i + orig_j];
-        }
-    }
-    for (int i = 0; i < padded_h_G; i++) {
-        for (int j = 0; j < padded_w_G; j++) {
-
-            int orig_i = i - pad_h_G;
-            int orig_j = j - pad_w_G;
-
-            // clamp
-            if (orig_i < 0) orig_i = 0;
-            if (orig_i >= img.h) orig_i = img.h - 1;
-            if (orig_j < 0) orig_j = 0;
-            if (orig_j >= img.w) orig_j = img.w - 1;
-
-            Gp[padded_h_G * i + j] = img.G[img.h * orig_i + orig_j];
-        }
-    }
-    for (int i = 0; i < padded_h_B; i++) {
-        for (int j = 0; j < padded_w_B; j++) {
-
-            int orig_i = i - pad_h_B;
-            int orig_j = j - pad_w_B;
-
-            // clamp
-            if (orig_i < 0) orig_i = 0;
-            if (orig_i >= img.h) orig_i = img.h - 1;
-            if (orig_j < 0) orig_j = 0;
-            if (orig_j >= img.w) orig_j = img.w - 1;
-
-            Bp[padded_h_B * i + j] = img.B[img.h * orig_i + orig_j];
-        }
-    }
-
-    // convolução (mesma lógica, só triplicada)
-    for (int i = 0; i < out.h; i++) {
-        for (int j = 0; j < out.w; j++) {
-
-            double sumR = 0.0;
-            double sumG = 0.0;
-            double sumB = 0.0;
-
-            for (int ki = 0; ki < kernel_R.side; ki++) {
-                for (int kj = 0; kj < kernel_R.side; kj++) {
-                    double k_R = kernel_R.kernel_values[kernel_R.side * ki + kj];
-                    sumR += Rp[padded_h_R * (i + ki) + (j + kj)] * k_R;
-                }
+                Rp[padded_h_R * i + j] = img.R[img.h * orig_i + orig_j];
             }
-            for (int ki = 0; ki < kernel_G.side; ki++) {
-                for (int kj = 0; kj < kernel_G.side; kj++) {
-                    double k_G = kernel_G.kernel_values[kernel_G.side * ki + kj];
-                    sumG += Gp[padded_h_G * (i + ki) + (j + kj)] * k_G;
-                }
-            }
-            for (int ki = 0; ki < kernel_B.side; ki++) {
-                for (int kj = 0; kj < kernel_B.side; kj++) {
-                    double k_B = kernel_B.kernel_values[kernel_B.side * ki + kj];
-                    sumB += Bp[padded_h_B * (i + ki) + (j + kj)] * k_B;
-                }
-            }
+        }
 
-            out.R[out.h * i + j] = sumR;
-            out.G[out.h * i + j] = sumG;
-            out.B[out.h * i + j] = sumB;
+        #pragma omp for schedule(static) nowait
+        for (int i = 0; i < padded_h_G; i++) {
+            for (int j = 0; j < padded_w_G; j++) {
+
+                int orig_i = i - pad_h_G;
+                int orig_j = j - pad_w_G;
+
+                // clamp
+                if (orig_i < 0) orig_i = 0;
+                if (orig_i >= img.h) orig_i = img.h - 1;
+                if (orig_j < 0) orig_j = 0;
+                if (orig_j >= img.w) orig_j = img.w - 1;
+
+                Gp[padded_h_G * i + j] = img.G[img.h * orig_i + orig_j];
+            }
+        }
+
+        #pragma omp for schedule(static) nowait
+        for (int i = 0; i < padded_h_B; i++) {
+            for (int j = 0; j < padded_w_B; j++) {
+
+                int orig_i = i - pad_h_B;
+                int orig_j = j - pad_w_B;
+
+                // clamp
+                if (orig_i < 0) orig_i = 0;
+                if (orig_i >= img.h) orig_i = img.h - 1;
+                if (orig_j < 0) orig_j = 0;
+                if (orig_j >= img.w) orig_j = img.w - 1;
+
+                Bp[padded_h_B * i + j] = img.B[img.h * orig_i + orig_j];
+            }
+        }
+
+        // barreira de sincronização
+        // Nenhuma thread passa daqui até que R, G e B estejam 100% preenchidos
+        #pragma omp barrier
+
+        #pragma omp for schedule(static)
+        // convolução (mesma lógica, só triplicada)
+        for (int i = 0; i < out.h; i++) {
+            for (int j = 0; j < out.w; j++) {
+
+                double sumR = 0.0;
+                double sumG = 0.0;
+                double sumB = 0.0;
+
+                for (int ki = 0; ki < kernel_R.side; ki++) {
+                    for (int kj = 0; kj < kernel_R.side; kj++) {
+                        double k_R = kernel_R.kernel_values[kernel_R.side * ki + kj];
+                        sumR += Rp[padded_h_R * (i + ki) + (j + kj)] * k_R;
+                    }
+                }
+                for (int ki = 0; ki < kernel_G.side; ki++) {
+                    for (int kj = 0; kj < kernel_G.side; kj++) {
+                        double k_G = kernel_G.kernel_values[kernel_G.side * ki + kj];
+                        sumG += Gp[padded_h_G * (i + ki) + (j + kj)] * k_G;
+                    }
+                }
+                for (int ki = 0; ki < kernel_B.side; ki++) {
+                    for (int kj = 0; kj < kernel_B.side; kj++) {
+                        double k_B = kernel_B.kernel_values[kernel_B.side * ki + kj];
+                        sumB += Bp[padded_h_B * (i + ki) + (j + kj)] * k_B;
+                    }
+                }
+
+                out.R[out.h * i + j] = sumR;
+                out.G[out.h * i + j] = sumG;
+                out.B[out.h * i + j] = sumB;
+            }
         }
     }
 
@@ -221,12 +297,19 @@ image_double apply_convolution_rgb(image_double img, image_double out, double *R
 }
 
 // iterativo
-image_double iterative_gaussian_blur_rgb(image_double img, unsigned int kernel_size_R, unsigned int kernel_size_G, unsigned int kernel_size_B, unsigned int iterations, double sigma) {
 
-    // cria kernel uma vez
-    kernel kernel_R = create_gaussian_kernel(kernel_size_R, sigma);
-    kernel kernel_G = create_gaussian_kernel(kernel_size_G, sigma);
-    kernel kernel_B = create_gaussian_kernel(kernel_size_B, sigma);
+image_double iterative_gaussian_blur_rgb(image_double img, unsigned int kernel_size_R, unsigned int kernel_size_G, unsigned int kernel_size_B, unsigned int iterations, double sigma) {
+    
+    kernel kernel_R, kernel_G, kernel_B;
+    
+    // cria kernel
+
+    kernel_R = create_gaussian_kernel(kernel_size_R, sigma);
+
+    kernel_G = create_gaussian_kernel(kernel_size_G, sigma);
+
+    kernel_B = create_gaussian_kernel(kernel_size_B, sigma);
+    
 
     // copia imagem inicial
     image_double current = copy_image_rgb(img);
@@ -386,6 +469,7 @@ image_double copy_image_rgb(image_double img) {
     copy.G = (double*) malloc(range_copy * sizeof(double));
     copy.B = (double*) malloc(range_copy * sizeof(double));
 
+    #pragma omp parallel for collapse(2)
     for (int i = 0; i < copy.h; i++) {
         for (int j = 0; j < copy.w; j++) {
             copy.R[copy.h * i + j] = img.R[img.h * i + j];

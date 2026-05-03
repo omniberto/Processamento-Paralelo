@@ -7,3 +7,5 @@ serial/
 .vscode/
 mainparallel.exe
 mainserial.exe
+corretudeparallel.exe
+corretudeserial.exe

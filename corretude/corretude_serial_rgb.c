@@ -1,8 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-#include "./headers/stb_image.h"
-#include "./headers/stb_image_write.h"
+#include "./../headers/stb_image.h"
+#include "./../headers/stb_image_write.h"
 #include <time.h>
 #include <omp.h>
 
@@ -50,31 +50,91 @@ void save_image(char* nome, image_double blurred); //Salvar imagem
 int main(void) {
 
     double start, stop;
+    /*
     char* input_path = "./images/image_1024.png"; // Arquivo de entrada
     char* output_path = "./images/outputrgbmksi.png"; // Arquivo de saída
+    
 
     start = omp_get_wtime();
     // 1. Abrir a imagem de entrada.
     image_double img = open_image(input_path);
     stop = omp_get_wtime();
     printf("Tempo de abertura da imagem:: %f\n", stop-start);
+    */
+
+    image_double img;
+    img.w = 5;
+    img.h = 5;
+    img.c = 3; // RGB
+
+    int size = img.w * img.h;
+
+    // Alocação
+    img.R = (double*) malloc(size * sizeof(double));
+    img.G = (double*) malloc(size * sizeof(double));
+    img.B = (double*) malloc(size * sizeof(double));
+
+    // Matriz base
+    double kernel[5][5] = {
+        {1, 2, 3, 2, 1},
+        {2, 4, 6, 4, 2},
+        {3, 6, 9, 6, 3},
+        {2, 4, 6, 4, 2},
+        {1, 2, 3, 2, 1}
+    };
+
+    // Copiando para os canais (igual para R, G e B)
+    for (int i = 0; i < img.h; i++) {
+        for (int j = 0; j < img.w; j++) {
+            int idx = i * img.w + j;
+            img.R[idx] = kernel[i][j];
+            img.G[idx] = kernel[i][j];
+            img.B[idx] = kernel[i][j];
+        }
+    }
 
     start = omp_get_wtime();
     // 2. Aplicar blur.
     unsigned int kernel_size_R = 3;
-    unsigned int kernel_size_G = 5;
-    unsigned int kernel_size_B = 7;
-    unsigned int iterations = 100;
+    unsigned int kernel_size_G = 3;
+    unsigned int kernel_size_B = 3;
+    unsigned int iterations = 2;
     double sigma = 1.0;
 
     image_double blurred = iterative_gaussian_blur_rgb(img, kernel_size_R, kernel_size_G, kernel_size_B, iterations, sigma);
     stop = omp_get_wtime();
     printf("Tempo de processamento do filtro Gaussiano: %f\n", stop-start);
 
+    /*
     start = omp_get_wtime();
     save_image(output_path, blurred);
     stop = omp_get_wtime();
     printf("Tempo de salvamento da imagem:: %f\n", stop-start);
+    */
+
+    printf("Canal R:\n");
+    for (int i = 0; i < blurred.h; i++) {
+        for (int j = 0; j < blurred.w; j++) {
+            printf("%.2f ", blurred.R[i * blurred.w + j]);
+        }
+        printf("\n");
+    }
+
+    printf("\nCanal G:\n");
+    for (int i = 0; i < blurred.h; i++) {
+        for (int j = 0; j < blurred.w; j++) {
+            printf("%.2f ", blurred.G[i * blurred.w + j]);
+        }
+        printf("\n");
+    }
+
+    printf("\nCanal B:\n");
+    for (int i = 0; i < blurred.h; i++) {
+        for (int j = 0; j < blurred.w; j++) {
+            printf("%.2f ", blurred.B[i * blurred.w + j]);
+        }
+        printf("\n");
+    }
 
     // 6. liberar memória
 
