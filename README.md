@@ -8,6 +8,15 @@ Repositório destinado à implementação das atividades da disciplina **Process
 
 ---
 
+## 📥 Clonando o repositório
+
+```bash
+git clone <URL_DO_REPOSITORIO>
+cd <NOME_DO_REPOSITORIO>
+```
+
+---
+
 ## ⚙️ Compilação
 
 Antes de tudo, compile o módulo do stb:
@@ -32,12 +41,12 @@ gcc -fopenmp filtro_gaussiano_serial_rgb.c stb_impl.o -o mainserial
 
 **Sequencial:**
 ```bash
-gcc -fopenmp corretude_serial_rgb.c stb_impl.o -o corretudeserial
+gcc -fopenmp ./corretude/corretude_serial_rgb.c stb_impl.o -o corretudeserial
 ```
 
 **Paralelo:**
 ```bash
-gcc -fopenmp corretude_parallel_rgb.c stb_impl.o -o corretudeparallel
+gcc -fopenmp ./corretude/corretude_parallel_rgb.c stb_impl.o -o corretudeparallel
 ```
 
 ---
