@@ -1,0 +1,11 @@
+.gitignore
+main.exe
+stb_impl.o
+execution_guide
+teste.c
+serial/
+.vscode/
+mainparallel.exe
+mainserial.exe
+corretudeparallel.exe
+corretudeserial.exe
