@@ -8,6 +8,18 @@ Repositório destinado à implementação das atividades da disciplina **Process
 
 ---
 
+## 📥 Clonando o repositório
+
+```bash
+git clone https://github.com/omniberto/Processamento-Paralelo.git
+```
+
+```bash
+cd Processamento-Paralelo
+```
+
+---
+
 ## ⚙️ Compilação
 
 Antes de tudo, compile o módulo do stb:
@@ -32,12 +44,12 @@ gcc -fopenmp filtro_gaussiano_serial_rgb.c stb_impl.o -o mainserial
 
 **Sequencial:**
 ```bash
-gcc -fopenmp corretude_serial_rgb.c stb_impl.o -o corretudeserial
+gcc -fopenmp ./corretude/corretude_serial_rgb.c stb_impl.o -o corretudeserial
 ```
 
 **Paralelo:**
 ```bash
-gcc -fopenmp corretude_parallel_rgb.c stb_impl.o -o corretudeparallel
+gcc -fopenmp ./corretude/corretude_parallel_rgb.c stb_impl.o -o corretudeparallel
 ```
 
 ---
@@ -46,8 +58,14 @@ gcc -fopenmp corretude_parallel_rgb.c stb_impl.o -o corretudeparallel
 
 ```bash
 ./mainparallel
+```
+```bash
 ./mainserial
+```
+```bash
 ./corretudeserial
+```
+```bash
 ./corretudeparallel
 ```
 
