@@ -50,8 +50,8 @@ void save_image(char* nome, image_double blurred); //Salvar imagem
 int main(void) {
 
     double start, stop;
-    char* input_path = "./images/image_1024.png"; // Arquivo de entrada
-    char* output_path = "./images/outputrgbmksi.png"; // Arquivo de saída
+    char* input_path = "./images/image_2048.png"; // Arquivo de entrada
+    char* output_path = "./images/outputserial.png"; // Arquivo de saída
 
     start = omp_get_wtime();
     // 1. Abrir a imagem de entrada.
@@ -61,9 +61,9 @@ int main(void) {
 
     start = omp_get_wtime();
     // 2. Aplicar blur.
-    unsigned int kernel_size_R = 3;
+    unsigned int kernel_size_R = 5;
     unsigned int kernel_size_G = 5;
-    unsigned int kernel_size_B = 7;
+    unsigned int kernel_size_B = 5;
     unsigned int iterations = 100;
     double sigma = 1.0;
 
@@ -150,7 +150,7 @@ image_double apply_convolution_rgb(image_double img, image_double out, double *R
             if (orig_j < 0) orig_j = 0;
             if (orig_j >= img.w) orig_j = img.w - 1;
 
-            Rp[padded_h_R * i + j] = img.R[img.h * orig_i + orig_j];
+            Rp[padded_w_R * i + j] = img.R[img.w * orig_i + orig_j];
         }
     }
     for (int i = 0; i < padded_h_G; i++) {
@@ -165,7 +165,7 @@ image_double apply_convolution_rgb(image_double img, image_double out, double *R
             if (orig_j < 0) orig_j = 0;
             if (orig_j >= img.w) orig_j = img.w - 1;
 
-            Gp[padded_h_G * i + j] = img.G[img.h * orig_i + orig_j];
+            Gp[padded_w_G * i + j] = img.G[img.w * orig_i + orig_j];
         }
     }
     for (int i = 0; i < padded_h_B; i++) {
@@ -180,7 +180,7 @@ image_double apply_convolution_rgb(image_double img, image_double out, double *R
             if (orig_j < 0) orig_j = 0;
             if (orig_j >= img.w) orig_j = img.w - 1;
 
-            Bp[padded_h_B * i + j] = img.B[img.h * orig_i + orig_j];
+            Bp[padded_w_B * i + j] = img.B[img.w * orig_i + orig_j];
         }
     }
 
@@ -195,25 +195,25 @@ image_double apply_convolution_rgb(image_double img, image_double out, double *R
             for (int ki = 0; ki < kernel_R.side; ki++) {
                 for (int kj = 0; kj < kernel_R.side; kj++) {
                     double k_R = kernel_R.kernel_values[kernel_R.side * ki + kj];
-                    sumR += Rp[padded_h_R * (i + ki) + (j + kj)] * k_R;
+                    sumR += Rp[padded_w_R * (i + ki) + (j + kj)] * k_R;
                 }
             }
             for (int ki = 0; ki < kernel_G.side; ki++) {
                 for (int kj = 0; kj < kernel_G.side; kj++) {
                     double k_G = kernel_G.kernel_values[kernel_G.side * ki + kj];
-                    sumG += Gp[padded_h_G * (i + ki) + (j + kj)] * k_G;
+                    sumG += Gp[padded_w_G * (i + ki) + (j + kj)] * k_G;
                 }
             }
             for (int ki = 0; ki < kernel_B.side; ki++) {
                 for (int kj = 0; kj < kernel_B.side; kj++) {
                     double k_B = kernel_B.kernel_values[kernel_B.side * ki + kj];
-                    sumB += Bp[padded_h_B * (i + ki) + (j + kj)] * k_B;
+                    sumB += Bp[padded_w_B * (i + ki) + (j + kj)] * k_B;
                 }
             }
 
-            out.R[out.h * i + j] = sumR;
-            out.G[out.h * i + j] = sumG;
-            out.B[out.h * i + j] = sumB;
+            out.R[out.w * i + j] = sumR;
+            out.G[out.w * i + j] = sumG;
+            out.B[out.w * i + j] = sumB;
         }
     }
 
@@ -300,9 +300,9 @@ void save_image(char* output_path, image_double blurred){
 
             int idx = (i * out.w + j) * 3;
 
-            buffer[idx]     = out.R[out.h * i + j];
-            buffer[idx + 1] = out.G[out.h * i + j];
-            buffer[idx + 2] = out.B[out.h * i + j];
+            buffer[idx]     = out.R[out.w * i + j];
+            buffer[idx + 1] = out.G[out.w * i + j];
+            buffer[idx + 2] = out.B[out.w * i + j];
         }
     }
 
@@ -324,7 +324,7 @@ void free_matrix(double* mat, int h) {
 void print_matrix(double* mat, int h, int w) {
     for (int i = 0; i < h; i++) {
         for (int j = 0; j < w; j++) {
-            printf("%6.2f ", mat[h * i + j]);
+            printf("%6.2f ", mat[w * i + j]);
         }
         printf("\n");
     }
@@ -336,15 +336,15 @@ image_double open_image(char* nome) {
     unsigned char *img = stbi_load(nome, &struct_img.w, &struct_img.h, &struct_img.c, 3);
     unsigned long int range = struct_img.h * struct_img.w;
     struct_img.R = malloc(range * sizeof(double));
-    struct_img.G = malloc(range * sizeof(double*));
-    struct_img.B = malloc(range * sizeof(double*));
+    struct_img.G = malloc(range * sizeof(double));
+    struct_img.B = malloc(range * sizeof(double));
 
     for (unsigned long int i = 0; i < struct_img.h; i++) {
         for (unsigned long int j = 0; j < struct_img.w; j++){
         int index = (i * struct_img.w + j) * 3;
-            struct_img.R[struct_img.h * i + j] = (double) img[index];
-            struct_img.G[struct_img.h * i + j] = (double) img[index + 1];
-            struct_img.B[struct_img.h * i + j] = (double) img[index + 2];
+            struct_img.R[struct_img.w * i + j] = (double) img[index];
+            struct_img.G[struct_img.w * i + j] = (double) img[index + 1];
+            struct_img.B[struct_img.w * i + j] = (double) img[index + 2];
         }
     }
 
@@ -365,9 +365,9 @@ image_char convert_from_double(image_double img) {
 
     for (int i = 0; i < new_img.h; i++){
         for (int j = 0; j < new_img.w; j++){
-            new_img.R[new_img.h * i + j] = (unsigned char) round(img.R[img.h * i + j]);
-            new_img.G[new_img.h * i + j] = (unsigned char) round(img.G[img.h * i + j]);
-            new_img.B[new_img.h * i + j] = (unsigned char) round(img.B[img.h * i + j]);
+            new_img.R[new_img.w * i + j] = (unsigned char) round(img.R[img.w * i + j]);
+            new_img.G[new_img.w * i + j] = (unsigned char) round(img.G[img.w * i + j]);
+            new_img.B[new_img.w * i + j] = (unsigned char) round(img.B[img.w * i + j]);
         }
     }
 
@@ -388,9 +388,9 @@ image_double copy_image_rgb(image_double img) {
 
     for (int i = 0; i < copy.h; i++) {
         for (int j = 0; j < copy.w; j++) {
-            copy.R[copy.h * i + j] = img.R[img.h * i + j];
-            copy.G[copy.h * i + j] = img.G[img.h * i + j];
-            copy.B[copy.h * i + j] = img.B[img.h * i + j];
+            copy.R[copy.w * i + j] = img.R[img.w * i + j];
+            copy.G[copy.w * i + j] = img.G[img.w * i + j];
+            copy.B[copy.w * i + j] = img.B[img.w * i + j];
         }
     }
 
