@@ -71,6 +71,8 @@ gcc -fopenmp ./corretude/corretude.c stb_impl.o -o corretude
 - O teste de corretude garante que os resultados das execuções usando MPI e serial produzam os resultados adequados.
 
 ## Nota de Transparência sobre o Uso de IA: 
-Declaro que este projeto contou com o auxílio das ferramentas de IA [Listar ferramentas] exclusivamente para as tarefas de [Listar tarefas, ex: geração de dados sintéticos para testes e revisão de código]. Como autor(a), atesto que revisei, testei e validei criticamente todo o conteúdo gerado, assumindo total e exclusiva responsabilidade pela correção lógica do código, precisão dos relatórios de desempenho e integridade acadêmica do material entregue.
-[Emanuel Humberto Menezes Cerqueira] – [01 de junho de 2026]
+Declaro que este projeto contou com o auxílio das ferramentas de IA [Listar ferramentas] exclusivamente para as tarefas de [Listar tarefas, ex: geração de dados sintéticos para testes e revisão de código]. Como autor(a), atesto que revisei, testei e validei criticamente todo o conteúdo gerado, assumindo total e exclusiva responsabilidade pela correção lógica do código, precisão dos relatórios de desempenho e integridade acadêmica do material entregue.  
+
+[Emanuel Humberto Menezes Cerqueira] – [01 de junho de 2026]  
+
 [David Júnio Mariano dos Santos] – [01 de junho de 2026]
