@@ -35,7 +35,7 @@ gcc -c stb_impl.c -o stb_impl.o
 ```bash
 gcc -fopenmp filtro_gaussiano_mpi_rgb.c stb_impl.o -I"C:\Program Files (x86)\Microsoft SDKs\MPI\Include" -L"C:\Program Files (x86)\Microsoft SDKs\MPI\Lib\x64" -lmsmpi -o mainmpi
 ```
-### Com mpicc
+#### Com mpicc
 ```bash
 mpicc -fopenmp filtro_gaussiano_mpi_rgb.c stb_impl.o -o mainmpi
 ```
