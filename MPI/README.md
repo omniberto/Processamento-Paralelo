@@ -18,6 +18,13 @@ git clone https://github.com/omniberto/Processamento-Paralelo.git
 cd Processamento-Paralelo
 ```
 
+```bash
+cd MPI
+```
+ou
+```bash
+cd OpenMP
+```
 ---
 
 ## ⚙️ Compilação
@@ -56,7 +63,7 @@ gcc -fopenmp ./corretude/corretude.c stb_impl.o -o corretude
 ## ▶️ Execução
 
 ```bash
-./mpiexec -n (n de processos) mainmpi.exe
+mpiexec -n (n de processos) mainmpi.exe
 ```
 ```bash
 ./mainserial
@@ -76,7 +83,15 @@ gcc -fopenmp ./corretude/corretude.c stb_impl.o -o corretude
 - O teste de corretude garante que os resultados das execuções usando MPI e serial produzam os resultados adequados.
 
 ## Nota de Transparência sobre o Uso de IA: 
-Declaro que este projeto contou com o auxílio das ferramentas de IA [Listar ferramentas] exclusivamente para as tarefas de [Listar tarefas, ex: geração de dados sintéticos para testes e revisão de código]. Como autor(a), atesto que revisei, testei e validei criticamente todo o conteúdo gerado, assumindo total e exclusiva responsabilidade pela correção lógica do código, precisão dos relatórios de desempenho e integridade acadêmica do material entregue.  
+Declaro que este projeto contou com o auxílio das ferramentas de IA exclusivamente para as tarefas de 
+
+• Revisão gramatical e tradução de trechos do relatório
+• Auxílio na depuração (debugging) de blocos específicos de código
+• Geração de scripts base para automação de testes de desempenho
+• Estruturação inicial de ideias e revisão bibliográfica
+• Estruturação de texto em formato LaTeX
+
+Como autor(a), atesto que revisei, testei e validei criticamente todo o conteúdo gerado, assumindo total e exclusiva responsabilidade pela correção lógica do código, precisão dos relatórios de desempenho e integridade acadêmica do material entregue.  
 
 [Emanuel Humberto Menezes Cerqueira] – [01 de junho de 2026]  
 
