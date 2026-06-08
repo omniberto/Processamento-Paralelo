@@ -17,7 +17,8 @@ git clone https://github.com/omniberto/Processamento-Paralelo.git
 ```bash
 cd Processamento-Paralelo
 ```
-
+---
+## 📁 Acessando a Pasta
 ```bash
 cd MPI
 ```
