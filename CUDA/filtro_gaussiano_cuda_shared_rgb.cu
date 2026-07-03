@@ -6,6 +6,10 @@
 #include <cuda_runtime.h>
 #include <omp.h>
 
+#define BSIZE 16
+#define KSIZE 5
+#define SHARED_SIDE (BSIZE + KSIZE - 1)  // 20
+
 // Struct representando a imagem como double
 typedef struct {
     double *R;
@@ -47,12 +51,12 @@ void save_image(char* nome, image_double blurred); //Salvar imagem
 int main(void) {
 
     char* input_path = "./images/image_2048.png"; // Arquivo de entrada
-    char* output_path = "./images/outputcuda.png"; // Arquivo de saída
+    char* output_path = "./images/outputcuda_shared.png"; // Arquivo de saída
 
     double start, stop;
 
     start = omp_get_wtime();
-    // 1. Abrir a imagem de entrada.
+    // Abrir a imagem de entrada.
     image_double img = open_image(input_path);
     int w = img.w, h = img.h;
     stop = omp_get_wtime();
@@ -81,7 +85,7 @@ int main(void) {
     cudaMalloc(&d_kG,   k_size);
     cudaMalloc(&d_kB,   k_size);
 
-    // 4. Copia imagem e kernels da CPU para GPU
+    // Copia imagem e kernels da CPU para GPU
     cudaMemcpy(d_R,  img.R, img_size, cudaMemcpyHostToDevice);
     cudaMemcpy(d_G,  img.G, img_size, cudaMemcpyHostToDevice);
     cudaMemcpy(d_B,  img.B, img_size, cudaMemcpyHostToDevice);
@@ -89,11 +93,11 @@ int main(void) {
     cudaMemcpy(d_kG, kG.kernel_values, k_size, cudaMemcpyHostToDevice);
     cudaMemcpy(d_kB, kB.kernel_values, k_size, cudaMemcpyHostToDevice);
 
-    // 5. Configura grid e block  ← AQUI É O PASSO 2
+    // Configura grid e block
     dim3 block(16, 16);
     dim3 grid((w + 15) / 16, (h + 15) / 16);
 
-    // 6. Loop iterativo
+    // Loop iterativo
     for (int it = 0; it < 100; it++) {
 
         convolution_kernel<<<grid, block>>>(
@@ -110,7 +114,7 @@ int main(void) {
         tmp = d_B;    d_B    = d_outB; d_outB = tmp;
     }
 
-    // 7. Copia resultado de volta pra CPU
+    // Copia resultado de volta pra CPU
     cudaDeviceSynchronize();
     cudaMemcpy(img.R, d_R, img_size, cudaMemcpyDeviceToHost);
     cudaMemcpy(img.G, d_G, img_size, cudaMemcpyDeviceToHost);
@@ -124,7 +128,7 @@ int main(void) {
     stop = omp_get_wtime();
     printf("Tempo de salvamento da imagem:: %f\n", stop-start);
 
-    // 6. liberar memória
+    // liberar memória
     cudaFree(d_R);  
     cudaFree(d_G);  
     cudaFree(d_B);
@@ -143,13 +147,13 @@ int main(void) {
 
 
 kernel create_gaussian_kernel(int size, double sigma) {
-    kernel new;
-    new.side = size;
+    kernel k;
+    k.side = size;
     int half = size / 2;
     double twoSigmaSqr = 2.0 * sigma * sigma;
 
     // alocar matriz 2D
-    new.kernel_values = (double*) malloc(size * size * sizeof(double));
+    k.kernel_values = (double*) malloc(size * size * sizeof(double));
 
     double sum = 0.0;
 
@@ -161,7 +165,7 @@ kernel create_gaussian_kernel(int size, double sigma) {
 
             double value = exp(-(x*x + y*y) / twoSigmaSqr);
 
-            new.kernel_values[size * i + j] = value;
+            k.kernel_values[size * i + j] = value;
             sum += value;
         }
     }
@@ -171,81 +175,90 @@ kernel create_gaussian_kernel(int size, double sigma) {
 
     for (int i = 0; i < size; i++) {
         for (int j = 0; j < size; j++) {
-            new.kernel_values[size * i + j] *= invSum;
+            k.kernel_values[size * i + j] *= invSum;
         }
     }
 
-    return new;
+    return k;
 }
 
-__global__ void convolution_kernel(
-    double *in_R, double *in_G, double *in_B,
-    double *out_R, double *out_G, double *out_B,
-    double *kR, double *kG, double *kB,
-    int kside,
-    int w, int h)
+__global__ void convolution_kernel(double *in_R, double *in_G, double *in_B, double *out_R, double *out_G, double *out_B, double *kR, double *kG, double *kB, int kside, int w, int h)
 {
-    int pad = kside / 2;
-    int tile = 16; // tamanho do bloco
-    int shared_side = tile + 2 * pad; // tile + halo dos dois lados
-
-    // shared memory para os três canais
-    __shared__ double sR[20 * 20]; // 16 + 2*2 = 20 para kernel 5x5
-    __shared__ double sG[20 * 20];
-    __shared__ double sB[20 * 20];
+    __shared__ double sR[SHARED_SIDE][SHARED_SIDE];
+    __shared__ double sG[SHARED_SIDE][SHARED_SIDE];
+    __shared__ double sB[SHARED_SIDE][SHARED_SIDE];
 
     int tx = threadIdx.x;
     int ty = threadIdx.y;
-    int col = blockIdx.x * tile + tx;
-    int row = blockIdx.y * tile + ty;
+    int col = blockIdx.x * BSIZE + tx;
+    int row = blockIdx.y * BSIZE + ty;
+    int pad = kside / 2;
 
-    // cada thread carrega seu pixel (com halo) na shared memory
-    // posição na shared memory inclui o offset do pad
-    int shared_row = ty + pad;
-    int shared_col = tx + pad;
-
-    // clamp para borda da imagem
+    // cada thread carrega o pixel central na shared memory
     int in_row = row < 0 ? 0 : (row >= h ? h - 1 : row);
     int in_col = col < 0 ? 0 : (col >= w ? w - 1 : col);
 
-    sR[shared_row * shared_side + shared_col] = in_R[in_row * w + in_col];
-    sG[shared_row * shared_side + shared_col] = in_G[in_row * w + in_col];
-    sB[shared_row * shared_side + shared_col] = in_B[in_row * w + in_col];
+    sR[ty + pad][tx + pad] = in_R[in_row * w + in_col];
+    sG[ty + pad][tx + pad] = in_G[in_row * w + in_col];
+    sB[ty + pad][tx + pad] = in_B[in_row * w + in_col];
 
-    // threads da borda do bloco carregam o halo
+    // threads da borda carregam o halo
     if (tx < pad) {
-        int halo_col = col - pad;
-        int halo_in_col = halo_col < 0 ? 0 : halo_col;
-        sR[shared_row * shared_side + tx] = in_R[in_row * w + halo_in_col];
-        sG[shared_row * shared_side + tx] = in_G[in_row * w + halo_in_col];
-        sB[shared_row * shared_side + tx] = in_B[in_row * w + halo_in_col];
+        int hc = col - pad < 0 ? 0 : col - pad;
+        sR[ty + pad][tx]           = in_R[in_row * w + hc];
+        sG[ty + pad][tx]           = in_G[in_row * w + hc];
+        sB[ty + pad][tx]           = in_B[in_row * w + hc];
     }
-    if (tx >= tile - pad) {
-        int halo_col = col + pad;
-        int halo_in_col = halo_col >= w ? w - 1 : halo_col;
-        sR[shared_row * shared_side + tx + 2 * pad] = in_R[in_row * w + halo_in_col];
-        sG[shared_row * shared_side + tx + 2 * pad] = in_G[in_row * w + halo_in_col];
-        sB[shared_row * shared_side + tx + 2 * pad] = in_B[in_row * w + halo_in_col];
+    if (tx >= BSIZE - pad) {
+        int hc = col + pad >= w ? w - 1 : col + pad;
+        sR[ty + pad][tx + 2 * pad] = in_R[in_row * w + hc];
+        sG[ty + pad][tx + 2 * pad] = in_G[in_row * w + hc];
+        sB[ty + pad][tx + 2 * pad] = in_B[in_row * w + hc];
     }
     if (ty < pad) {
-        int halo_row = row - pad;
-        int halo_in_row = halo_row < 0 ? 0 : halo_row;
-        sR[ty * shared_side + shared_col] = in_R[halo_in_row * w + in_col];
-        sG[ty * shared_side + shared_col] = in_G[halo_in_row * w + in_col];
-        sB[ty * shared_side + shared_col] = in_B[halo_in_row * w + in_col];
+        int hr = row - pad < 0 ? 0 : row - pad;
+        sR[ty][tx + pad]           = in_R[hr * w + in_col];
+        sG[ty][tx + pad]           = in_G[hr * w + in_col];
+        sB[ty][tx + pad]           = in_B[hr * w + in_col];
     }
-    if (ty >= tile - pad) {
-        int halo_row = row + pad;
-        int halo_in_row = halo_row >= h ? h - 1 : halo_row;
-        sR[(ty + 2 * pad) * shared_side + shared_col] = in_R[halo_in_row * w + in_col];
-        sG[(ty + 2 * pad) * shared_side + shared_col] = in_G[halo_in_row * w + in_col];
-        sB[(ty + 2 * pad) * shared_side + shared_col] = in_B[halo_in_row * w + in_col];
+    if (ty >= BSIZE - pad) {
+        int hr = row + pad >= h ? h - 1 : row + pad;
+        sR[ty + 2 * pad][tx + pad] = in_R[hr * w + in_col];
+        sG[ty + 2 * pad][tx + pad] = in_G[hr * w + in_col];
+        sB[ty + 2 * pad][tx + pad] = in_B[hr * w + in_col];
+    }
+    // cantos diagonais
+    if (tx < pad && ty < pad) {
+        int hr = row - pad < 0 ? 0 : row - pad;
+        int hc = col - pad < 0 ? 0 : col - pad;
+        sR[ty][tx]                 = in_R[hr * w + hc];
+        sG[ty][tx]                 = in_G[hr * w + hc];
+        sB[ty][tx]                 = in_B[hr * w + hc];
+    }
+    if (tx >= BSIZE - pad && ty < pad) {
+        int hr = row - pad < 0 ? 0 : row - pad;
+        int hc = col + pad >= w ? w - 1 : col + pad;
+        sR[ty][tx + 2 * pad]       = in_R[hr * w + hc];
+        sG[ty][tx + 2 * pad]       = in_G[hr * w + hc];
+        sB[ty][tx + 2 * pad]       = in_B[hr * w + hc];
+    }
+    if (tx < pad && ty >= BSIZE - pad) {
+        int hr = row + pad >= h ? h - 1 : row + pad;
+        int hc = col - pad < 0 ? 0 : col - pad;
+        sR[ty + 2 * pad][tx]       = in_R[hr * w + hc];
+        sG[ty + 2 * pad][tx]       = in_G[hr * w + hc];
+        sB[ty + 2 * pad][tx]       = in_B[hr * w + hc];
+    }
+    if (tx >= BSIZE - pad && ty >= BSIZE - pad) {
+        int hr = row + pad >= h ? h - 1 : row + pad;
+        int hc = col + pad >= w ? w - 1 : col + pad;
+        sR[ty + 2 * pad][tx + 2 * pad] = in_R[hr * w + hc];
+        sG[ty + 2 * pad][tx + 2 * pad] = in_G[hr * w + hc];
+        sB[ty + 2 * pad][tx + 2 * pad] = in_B[hr * w + hc];
     }
 
-    // espera todas as threads do bloco carregarem a shared memory
     __syncthreads();
 
-    // threads fora da imagem não calculam saída
     if (col >= w || row >= h) return;
 
     double sumR = 0.0, sumG = 0.0, sumB = 0.0;
@@ -255,14 +268,12 @@ __global__ void convolution_kernel(
             double kr = kR[ki * kside + kj];
             double kg = kG[ki * kside + kj];
             double kb = kB[ki * kside + kj];
-
-            sumR += sR[(shared_row + ki - pad) * shared_side + (shared_col + kj - pad)] * kr;
-            sumG += sG[(shared_row + ki - pad) * shared_side + (shared_col + kj - pad)] * kg;
-            sumB += sB[(shared_row + ki - pad) * shared_side + (shared_col + kj - pad)] * kb;
+            sumR += sR[ty + ki][tx + kj] * kr;
+            sumG += sG[ty + ki][tx + kj] * kg;
+            sumB += sB[ty + ki][tx + kj] * kb;
         }
     }
 
-    // sincroniza antes de escrever para garantir que todas leram a shared memory
     __syncthreads();
 
     out_R[row * w + col] = sumR;
@@ -272,11 +283,11 @@ __global__ void convolution_kernel(
 
 
 void save_image(char* output_path, image_double blurred){
-    // 3. Converter de double para unsigned char pra saída.
+    // Converter de double para unsigned char pra saída.
     image_char out = convert_from_double(blurred);
     
-    // 4. Montar buffer linear (RGB)
-    unsigned char* buffer = malloc(out.w * out.h * 3);
+    // Montar buffer linear (RGB)
+    unsigned char* buffer = (unsigned char*) malloc(out.w * out.h * 3);
 
     for (int i = 0; i < out.h; i++) {
         for (int j = 0; j < out.w; j++) {
@@ -289,7 +300,7 @@ void save_image(char* output_path, image_double blurred){
         }
     }
 
-    // 5. salvar imagem
+    // salvar imagem
     stbi_write_png(output_path, out.w, out.h, 3, buffer, out.w * 3);
     printf("Imagem salva em: %s\n", output_path);
 
@@ -318,9 +329,9 @@ image_double open_image(char* nome) {
     image_double struct_img;
     unsigned char *img = stbi_load(nome, &struct_img.w, &struct_img.h, &struct_img.c, 3);
     unsigned long int range = struct_img.h * struct_img.w;
-    struct_img.R = malloc(range * sizeof(double));
-    struct_img.G = malloc(range * sizeof(double));
-    struct_img.B = malloc(range * sizeof(double));
+    struct_img.R = (double*) malloc(range * sizeof(double));
+    struct_img.G = (double*) malloc(range * sizeof(double));
+    struct_img.B = (double*) malloc(range * sizeof(double));
 
     for (unsigned long int i = 0; i < struct_img.h; i++) {
         for (unsigned long int j = 0; j < struct_img.w; j++){
@@ -342,9 +353,9 @@ image_char convert_from_double(image_double img) {
 
     unsigned long int range_char = new_img.h * new_img.w;
 
-    new_img.R = malloc(range_char * sizeof(unsigned char));
-    new_img.G = malloc(range_char * sizeof(unsigned char));
-    new_img.B = malloc(range_char * sizeof(unsigned char));
+    new_img.R = (unsigned char*) malloc(range_char * sizeof(unsigned char));
+    new_img.G = (unsigned char*) malloc(range_char * sizeof(unsigned char));
+    new_img.B = (unsigned char*) malloc(range_char * sizeof(unsigned char));
 
     for (int i = 0; i < new_img.h; i++){
         for (int j = 0; j < new_img.w; j++){

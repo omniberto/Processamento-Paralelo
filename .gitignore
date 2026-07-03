@@ -1,0 +1,15 @@
+main.exe
+stb_impl.o
+execution_guide
+teste.c
+serial/
+.vscode/
+mainparallel.exe
+mainserial.exe
+maincuda.exe
+maincudashared.exe
+corretudeparallel.exe
+corretudeserial.exe
+corretudeshared.exe
+corretude.exe
+stb_impl.obj

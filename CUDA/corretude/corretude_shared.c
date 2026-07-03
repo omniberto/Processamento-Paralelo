@@ -6,7 +6,7 @@
 int main(int argc, char** argv) {
     // Definindo os caminhos (voce pode alterar para os nomes reais dos seus arquivos)
     char* path_serial = "././images/outputserial.png";
-    char* path_cuda = "././images/outputcuda.png";
+    char* path_cuda = "././images/outputcuda_shared.png";
 
     // Permite passar os arquivos via linha de comando (opcional)
     if (argc == 3) {
@@ -18,7 +18,7 @@ int main(int argc, char** argv) {
     printf("VERIFICADOR DE CORRETUDE - DESFOQUE GAUSSIANO\n");
     printf("==================================================\n");
     printf("Imagem Serial : %s\n", path_serial);
-    printf("Imagem CUDA    : %s\n\n", path_cuda);
+    printf("Imagem CUDA shared    : %s\n\n", path_cuda);
 
     int w1, h1, c1;
     int w2, h2, c2;
@@ -32,7 +32,7 @@ int main(int argc, char** argv) {
 
     unsigned char *img_cuda = stbi_load(path_cuda, &w2, &h2, &c2, 3);
     if (img_cuda == NULL) {
-        printf("ERRO: Nao foi possivel abrir a imagem CUDA.\n");
+        printf("ERRO: Nao foi possivel abrir a imagem CUDA shared.\n");
         free(img_serial);
         return 1;
     }
@@ -41,7 +41,7 @@ int main(int argc, char** argv) {
     if (w1 != w2 || h1 != h2 || c1 != c2) {
         printf("ERRO GRAVE: As imagens possuem dimensoes ou canais diferentes!\n");
         printf("Serial: %d x %d (%d canais)\n", w1, h1, c1);
-        printf("CUDA   : %d x %d (%d canais)\n", w2, h2, c2);
+        printf("CUDA shared   : %d x %d (%d canais)\n", w2, h2, c2);
         
         free(img_serial);
         free(img_cuda);
@@ -79,7 +79,7 @@ int main(int argc, char** argv) {
 
     if (pixels_divergentes == 0) {
         printf("\nVEREDITO: SUCESSO ABSOLUTO!\n");
-        printf("As imagens sao BIT A BIT IDENTICAS. O seu CUDA esta perfeito!\n");
+        printf("As imagens sao BIT A BIT IDENTICAS. O seu CUDA shared esta perfeito!\n");
     } else {
         double erro_medio = erro_acumulado / total_pixels;
         printf("Erro medio por pixel        : %f\n", erro_medio);
@@ -90,7 +90,7 @@ int main(int argc, char** argv) {
             printf("Isso é normal devido ao arredondamento (round) do ponto flutuante em paralelismo.\n");
         } else {
             printf("\nVEREDITO: FALHA.\n");
-            printf("As imagens sao visivelmente diferentes. Existe algum erro de lógica no codigo CUDA.\n");
+            printf("As imagens sao visivelmente diferentes. Existe algum erro de logica no codigo CUDA shared.\n");
         }
     }
     printf("==================================================\n");
