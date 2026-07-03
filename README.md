@@ -7,8 +7,13 @@ Repositório destinado à implementação das atividades da disciplina **Process
 - Emanuel Humberto Menezes Cerqueira  
 
 ## Guia de pastas
-### OpenMP
-Esta pasta contém a execução do filtro gaussiano utilizando _OpenMP_, trabalhando com um sistema de threads.
+
+### CUDA
+Esta pasta contém a execução do filtro gaussiano utilizando _CUDA_, trabalhando com um sistema de paralelização em GPU.
 
 ### MPI
 Esta pasta contém a execução do filtro gaussiano utilizando _MPI_, trabalhando com um sistema de processos paralelos.
+
+### OpenMP
+Esta pasta contém a execução do filtro gaussiano utilizando _OpenMP_, trabalhando com um sistema de threads.
+
