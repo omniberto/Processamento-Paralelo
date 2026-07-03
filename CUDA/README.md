@@ -136,11 +136,11 @@ gcc -fopenmp ./corretude/corretude_shared.c stb_impl.o -o corretudeshared
 ## Nota de Transparência sobre o Uso de IA:
 Declaro que este projeto contou com o auxílio das ferramentas de IA exclusivamente para as tarefas de
 
-• Revisão gramatical e tradução de trechos do relatório
-• Auxílio na depuração (debugging) de blocos específicos de código
-• Geração de scripts base para automação de testes de desempenho
-• Estruturação inicial de ideias e revisão bibliográfica
-• Estruturação de texto em formato LaTeX
+- Revisão gramatical e tradução de trechos do relatório
+- Auxílio na depuração (debugging) de blocos específicos de código
+- Geração de scripts base para automação de testes de desempenho
+- Estruturação inicial de ideias e revisão bibliográfica
+- Estruturação de texto em formato LaTeX
 
 Como autor(a), atesto que revisei, testei e validei criticamente todo o conteúdo gerado, assumindo total e exclusiva responsabilidade pela correção lógica do código, precisão dos relatórios de desempenho e integridade acadêmica do material entregue.
 
